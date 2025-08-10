@@ -1,4 +1,5 @@
-const CACHE = 'taxcalc-cache-v5';
+// Fresh build cache (bump this to invalidate old assets) 
+const CACHE = 'taxcalc-fresh-v1';
 const ASSETS = [
   './','./index.html','./styles.css','./app.js','./manifest.webmanifest',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-512-maskable.png'

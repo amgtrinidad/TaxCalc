@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tax Calculator</title>
+  <title>TaxCalc</title>
 
   <!-- PWA + iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Tax Calculator">
+  <meta name="apple-mobile-web-app-title" content="TaxCalc">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="theme-color" content="#0b1020">
   <link rel="manifest" href="manifest.webmanifest">
@@ -18,27 +18,27 @@
 <body>
   <header class="topbar">
     <div class="wrap">
-      <h1>📊 Tax Calculator</h1>
+      <h1>📊 TaxCalc</h1>
 
       <!-- Year controls -->
       <div class="pill">
         <label for="yearSelect" class="muted">Year</label>
-        <select id="yearSelect" class="select"></select>
-        <button class="btn" id="btnNewYear">➕ New Year</button>
-        <button class="btn" id="btnExportYear">⬇️ Export Year JSON</button>
-        <label class="btn" for="fileImport" id="btnImportYear">⬆️ Import Year JSON</label>
+        <select id="yearSelect" class="select" aria-label="Select year"></select>
+        <button class="btn" id="btnNewYear" title="Create new blank year">➕ New Year</button>
+        <button class="btn" id="btnExportYear" title="Download current year as JSON">⬇️ Export Year</button>
+        <label class="btn" for="fileImport" id="btnImportYear" title="Import Year JSON">⬆️ Import Year</label>
         <input id="fileImport" type="file" accept="application/json" style="display:none" />
       </div>
 
       <div class="totals-bar">
-        <button class="btn accent" id="btnGrandTotal">💥 Annual Grand Total</button>
-        <span id="grandTotal" class="grand"></span>
+        <button class="btn accent" id="btnGrandTotal" title="Compute annual total">💥 Annual Grand Total</button>
+        <span id="grandTotal" class="grand" aria-live="polite"></span>
         <button class="btn blue" id="btnInstall" style="display:none">Install App</button>
       </div>
     </div>
   </header>
 
-  <nav class="tabs" id="quarterTabs"></nav>
+  <nav class="tabs" id="quarterTabs" aria-label="Quarters"></nav>
 
   <main class="card">
     <div class="scroller">
@@ -46,20 +46,20 @@
     </div>
 
     <!-- Expanded quarter totals / actions area -->
-    <section class="quarterSummary">
+    <section class="quarterSummary" aria-label="Quarter Summary">
       <div class="qs-row">
-        <div class="qs-title">Quarter subtotal (per category)</div>
+        <div class="qs-title">Quarter sum (all categories)</div>
         <div class="qs-total"><span id="quarterSumAll">₱ 0</span></div>
       </div>
       <div class="qs-actions">
         <button class="btn blue" id="btnSaveQuarter">Save Quarter</button>
-        <button class="btn" id="btnPNG">Export Quarterly Summary PNG</button>
+        <button class="btn" id="btnPNG">Export Quarterly PNG</button>
       </div>
     </section>
   </main>
 
   <footer class="footnote">
-    <span>Data is stored per <b>year</b> in your browser. Use “Export/Import Year JSON” for backups.</span>
+    <span>Data is stored per <b>year</b> on this device (localStorage). Use Export/Import for backups or moving devices.</span>
   </footer>
 
   <script src="app.js"></script>

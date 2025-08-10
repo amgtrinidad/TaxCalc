@@ -1,7 +1,17 @@
-/* Tax Calculator — Year-aware + Import/Export + Mobile typing fix */
+/* TaxCalc — fresh build with all requested edits.
+   - Months JAN–DEC
+   - Columns 2–9 (DDV IN, DDV OPD, BFD IN, BFD OPD, NGH, TMCP, OTHERS, PROJECTS) with 7 inputs each
+   - Column 10: Remarks
+   - Live quarter totals (per category) + expanded quarter sum
+   - Quarter tabs + Save Quarter (JSON) + Export Quarter PNG
+   - Annual grand total button
+   - Mobile: continuous input (no rerender on keystroke), placeholders S1..S7
+   - Clear month divisions
+   - Year management: select year, create new year, import/export year JSON (stored forever)
+   - PWA ready (service worker)
+*/
 (function(){
-  const STORAGE_NS = 'taxcalc-v2';
-  const OLD_KEY = 'taxcalc-v1';
+  const STORAGE_NS = 'taxcalc-v3'; // new namespace for this build
   const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
   const CATS = ["DDV IN","DDV OPD","BFD IN","BFD OPD","NGH","TMCP","OTHERS","PROJECTS"];
   const QUARTERS = [
@@ -11,18 +21,16 @@
     { name:"Q4 • OCT–DEC", months:[9,10,11] }
   ];
 
-  function emptyYear(){ return { months: MONTHS.map(()=>({remarks:"",categories:Object.fromEntries(CATS.map(c=>[c,Array(7).fill("")]))})) }; }
+  // ---------- Year store ----------
+  const emptyYear = () => ({ months: MONTHS.map(()=>({remarks:"",categories:Object.fromEntries(CATS.map(c=>[c,Array(7).fill("")]))})) });
 
   function loadStore(){
     let store=null;
     try{ store = JSON.parse(localStorage.getItem(STORAGE_NS) || 'null'); }catch{ store=null; }
     if (!store){
-      const legacy = localStorage.getItem(OLD_KEY);
-      const y = new Date().getFullYear().toString();
-      store = { currentYear: y, years: {} };
-      store.years[y] = legacy ? JSON.parse(legacy) : emptyYear();
+      const y = String(new Date().getFullYear());
+      store = { currentYear: y, years: { [y]: emptyYear() } };
       localStorage.setItem(STORAGE_NS, JSON.stringify(store));
-      if (legacy) localStorage.removeItem(OLD_KEY);
     }
     return store;
   }
@@ -31,6 +39,7 @@
   let store = loadStore();
   let activeQ = 0;
 
+  // ---------- DOM ----------
   const tabs = document.getElementById('quarterTabs');
   const table = document.getElementById('qTable');
   const btnSaveQuarter = document.getElementById('btnSaveQuarter');
@@ -43,6 +52,7 @@
   const fileImport = document.getElementById('fileImport');
   const quarterSumAll = document.getElementById('quarterSumAll');
 
+  // ---------- Year controls ----------
   function refreshYearSelect(){
     yearSelect.innerHTML = '';
     const years = Object.keys(store.years).sort();
@@ -55,11 +65,10 @@
   }
   function currentData(){ return store.years[store.currentYear]; }
   function setYear(y){
-    store.currentYear = y; saveStore(); renderQuarter(); updateGrandTotalLabel(); refreshYearSelect();
+    store.currentYear = y; saveStore();
+    renderQuarter(); updateGrandTotalLabel(); refreshYearSelect();
   }
-
   refreshYearSelect();
-
   yearSelect.addEventListener('change', e=> setYear(e.target.value));
   btnNewYear.addEventListener('click', ()=>{
     const y = prompt('Create new year (e.g., 2025):', String(new Date().getFullYear()));
@@ -74,29 +83,23 @@
     const a = document.createElement('a'); a.href = url; a.download = `tax-${store.currentYear}.json`; a.click();
     URL.revokeObjectURL(url);
   });
-
-  // Import Year JSON
   fileImport.addEventListener('change', async (e)=>{
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     try{
       const text = await file.text();
       const obj = JSON.parse(text);
-      // Accept either {year, data} or {years:{...}, currentYear:...}
-      if (obj.year && obj.data){
-        const y = String(obj.year);
-        if (!validYearData(obj.data)) throw new Error('Invalid data format');
-        store.years[y] = obj.data;
-        store.currentYear = y;
+      if (obj.year && obj.data && validYearData(obj.data)){
+        store.years[String(obj.year)] = obj.data;
+        store.currentYear = String(obj.year);
       } else if (obj.years && obj.currentYear){
-        // merge
         for (const [y,yd] of Object.entries(obj.years)){
-          if (!validYearData(yd)) throw new Error('Invalid year inside import');
+          if (!validYearData(yd)) throw new Error('Invalid year in file');
           store.years[y] = yd;
         }
         if (obj.currentYear in store.years) store.currentYear = obj.currentYear;
       } else {
-        throw new Error('Unrecognized JSON format');
+        throw new Error('Unrecognized JSON structure');
       }
       saveStore();
       alert('Import successful.');
@@ -106,21 +109,21 @@
       alert('Import failed: ' + err.message);
     }
   });
-
   function validYearData(d){
     try{
       if (!d.months || d.months.length !== 12) return false;
       for (const m of d.months){
         if (!m.categories) return false;
         for (const c of CATS){
-          if (!Array.isArray(m.categories[c]) || m.categories[c].length !== 7) return false;
+          const arr = m.categories[c];
+          if (!Array.isArray(arr) || arr.length !== 7) return false;
         }
       }
       return true;
     }catch{ return false; }
   }
 
-  // Build quarter tabs
+  // ---------- Quarter tabs ----------
   QUARTERS.forEach((q, i)=>{
     const b = document.createElement('button');
     b.className = 'tab' + (i===0?' active':'');
@@ -134,9 +137,11 @@
     tabs.appendChild(b);
   });
 
+  // ---------- Initial render ----------
   renderQuarter();
   updateGrandTotalLabel();
 
+  // ---------- Actions ----------
   btnSaveQuarter.addEventListener('click', ()=>{
     saveStore();
     downloadJSON(quarterSnapshot(activeQ), `tax-${store.currentYear}-Q${activeQ+1}.json`);
@@ -150,6 +155,7 @@
     alert(`Annual Grand Total (${store.currentYear}) — Cols 2–9:\n₱ ${fmt(annualGrandTotal())}`);
   });
 
+  // ---------- Render ----------
   function renderQuarter(){
     const data = currentData();
     const q = QUARTERS[activeQ];
@@ -166,7 +172,7 @@
       return `
         <tr class="monthrow" data-month="${mIdx}">
           <td class="center">${rowi+1}</td>
-          <td class="month">${["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][mIdx]}</td>
+          <td class="month">${MONTHS[mIdx]}</td>
           ${CATS.map(cat=>{
             const inputs = data.months[mIdx].categories[cat];
             const cells = Array.from({length:7}).map((_,i)=>{
@@ -198,6 +204,7 @@
     updateQuarterAllSum();
   }
 
+  // ---------- Edit handlers (no rerender on keystroke) ----------
   function onValueEdit(e){
     const el = e.currentTarget;
     const cat = el.dataset.cat;
@@ -215,28 +222,25 @@
     saveStore();
   }
 
-  function num(x){ const n = parseFloat(x); return Number.isFinite(n) ? n : 0; }
+  // ---------- Math & totals ----------
+  const num = x => { const n = parseFloat(x); return Number.isFinite(n) ? n : 0; };
   function sumMonthCategory(mIdx, cat){ return currentData().months[mIdx].categories[cat].reduce((a,b)=>a+num(b),0); }
   function sumQuarterCategory(qIdx, cat){ return QUARTERS[qIdx].months.reduce((acc,m)=> acc + sumMonthCategory(m,cat), 0); }
-  function annualGrandTotal(){ let total=0; for(let m=0;m<12;m++){ for(const c of CATS){ total+=sumMonthCategory(m,c);} } return total; }
+  function annualGrandTotal(){ let t=0; for(let m=0;m<12;m++){ for(const c of CATS){ t += sumMonthCategory(m,c); } } return t; }
   function updateGrandTotalLabel(){ grandSpan.textContent = `₱ ${fmt(annualGrandTotal())}`; }
-  const fmt = n => n.toLocaleString(undefined,{maximumFractionDigits:2});
-
   function updateQuarterTotals(){
-    const foot = table.querySelector('tfoot');
-    if (!foot) return;
+    const foot = table.querySelector('tfoot'); if (!foot) return;
     const cells = foot.querySelectorAll('.sumcell');
-    CATS.forEach((cat, i)=>{
-      const s = sumQuarterCategory(activeQ, cat);
-      if (cells[i]) cells[i].textContent = `₱ ${fmt(s)}`;
-    });
+    CATS.forEach((cat,i)=>{ const s = sumQuarterCategory(activeQ,cat); if (cells[i]) cells[i].textContent = `₱ ${fmt(s)}`; });
     updateQuarterAllSum();
   }
   function updateQuarterAllSum(){
     const total = CATS.reduce((acc,cat)=> acc + sumQuarterCategory(activeQ, cat), 0);
     quarterSumAll.textContent = `₱ ${fmt(total)}`;
   }
+  const fmt = n => n.toLocaleString(undefined,{maximumFractionDigits:2});
 
+  // ---------- Export helpers ----------
   function quarterSnapshot(qIdx){
     const mIdxs = QUARTERS[qIdx].months;
     return {
@@ -258,6 +262,7 @@
     URL.revokeObjectURL(url);
   }
 
+  // ---------- PNG export ----------
   function renderQuarterPNG(qIdx){
     const pad = 24, cellH = 26, headerH = 44, stackCols = 7;
     const colW = { idx: 36, month: 70, catSlot: 90, remarks: 260 };
@@ -317,7 +322,7 @@
     return c.toDataURL('image/png');
   }
 
-  // PWA
+  // ---------- PWA ----------
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', ()=> {
       navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
