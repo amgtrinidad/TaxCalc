@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tax Calculator</title>
+
+  <!-- PWA + iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tax Calculator">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#0b1020">
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <h1>📊 Tax Calculator</h1>
+
+      <!-- Year controls -->
+      <div class="pill">
+        <label for="yearSelect" class="muted">Year</label>
+        <select id="yearSelect" class="select"></select>
+        <button class="btn" id="btnNewYear">➕ New Year</button>
+        <button class="btn" id="btnExportYear">⬇️ Export Year JSON</button>
+        <label class="btn" for="fileImport" id="btnImportYear">⬆️ Import Year JSON</label>
+        <input id="fileImport" type="file" accept="application/json" style="display:none" />
+      </div>
+
+      <div class="totals-bar">
+        <button class="btn accent" id="btnGrandTotal">💥 Annual Grand Total</button>
+        <span id="grandTotal" class="grand"></span>
+        <button class="btn blue" id="btnInstall" style="display:none">Install App</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="quarterTabs"></nav>
+
+  <main class="card">
+    <div class="scroller">
+      <table id="qTable" aria-label="Quarter Table"></table>
+    </div>
+
+    <!-- Expanded quarter totals / actions area -->
+    <section class="quarterSummary">
+      <div class="qs-row">
+        <div class="qs-title">Quarter subtotal (per category)</div>
+        <div class="qs-total"><span id="quarterSumAll">₱ 0</span></div>
+      </div>
+      <div class="qs-actions">
+        <button class="btn blue" id="btnSaveQuarter">Save Quarter</button>
+        <button class="btn" id="btnPNG">Export Quarterly Summary PNG</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footnote">
+    <span>Data is stored per <b>year</b> in your browser. Use “Export/Import Year JSON” for backups.</span>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    // Minimal install UX (Android/Chrome)
+    let deferredPrompt;
+    const installBtn = document.getElementById('btnInstall');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'inline-block';
+    });
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
